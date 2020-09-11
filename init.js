@@ -141,6 +141,16 @@ const state = {
                     }
                 };
                 break;
+            case 'INVALID_START_NODE':
+                responseObj = {
+                    msg,
+                    body: {
+                        newLine: null,
+                        heading: `Player ${this.player}`,
+                        message: "Not a valid starting position."
+                    }
+                };
+                break;
             case 'VALID_END_NODE':
                 responseObj = {
                     msg,
@@ -171,11 +181,11 @@ const state = {
 }
 
 // returns a Boolean
-const checkCoordinatesAreEqual = (object1, object2) => {
-    const keys1 = Object.keys(object1);
+const checkCoordinatesAreEqual = (coordinate1, coordinate2) => {
+    const keys1 = Object.keys(coordinate1);
 
     return keys1.every((key1) => {
-        return object1[key1] === object2[key1];
+        return coordinate1[key1] === coordinate2[key1];
     })
 };
 
@@ -219,13 +229,34 @@ const checkFirstCoordinateIsValid = (coordinate) => {
     return checkCoordinatesAreEqual(coordinate, state.startOfPathCoordinate) || checkCoordinatesAreEqual(coordinate, state.endOfPathCoordinate);
 }
 
+// checks if line is octilinear (horizontal, vertical, or 45 degree angle) (returns true/false)
+const checkLineIsOctilinear = (coordinate1, coordinate2) => {
+    // if slope is 1, 0 or undefined, line is octilinear
+    if (coordinate1.x === coordinate2.x || coordinate1.y === coordinate2.y) {
+        console.log('line is octilinear, hor or ver')
+        return true;
+    }
+    const slope = Math.abs((coordinate1.x - coordinate2.x) / (coordinate1.y - coordinate2.y));
+    if (slope === 1) {
+        console.log('line is octilinear, slope 1')
+        return true;
+    }
+}
+
+// returns true if coordinate if valid, false otherwise
+const checkSecondCoordinateIsValid = () => {
+    // if user clicked on the same coordinate on his second click
+    if (checkCoordinatesAreEqual(state.startClickCoordinate, state.endClickCoordinate)) {
+        return false
+    }
+    if (checkLineIsOctilinear(state.startClickCoordinate, state.endClickCoordinate)) {
+        return true;
+    }
+    return false;
+}
+
 // coordinate is in form {x: Number, y: Number}
 const handleNodeClicked = (coordinate, msg) => {
-    // // check if it is a first click in a game
-    // if (state.turn === 0) {
-    //     state.startClickCoordinate = coordinate;
-    //     return app.ports.response.send(state.formResponseObj('VALID_START_NODE'));
-    // }
     // check if it is a first click of a player
     if (state.firstClick) {
         state.firstClick = false;
@@ -234,14 +265,20 @@ const handleNodeClicked = (coordinate, msg) => {
         // check if the first clicked node is valid
         if (checkFirstCoordinateIsValid(coordinate)) {
             return app.ports.response.send(state.formResponseObj('VALID_START_NODE'));
+        } else {
+            console.log('invalid start mode')
+            console.log('response INVALID START NODE =', state.formResponseObj('INVALID_START_NODE'))
+            app.ports.response.send(state.formResponseObj('INVALID_START_NODE'));
+            resetStateToFirstClick();
+            return;
         }
     };
 
     // it is a second click of a player
     state.endClickCoordinate = coordinate;
 
-    // if user clicked on the same coordinate on his second click
-    if (checkCoordinatesAreEqual(state.startClickCoordinate, state.endClickCoordinate)) {
+    // check if the second clicked node is valid
+    if (!checkSecondCoordinateIsValid()) {
         app.ports.response.send(state.formResponseObj('INVALID_END_NODE'));
         resetStateToFirstClick();
         return;
