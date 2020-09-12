@@ -103,101 +103,22 @@ const doIntersect = (p1,q1,p2,q2) => {
 };
 // //////////////////////////////////////////////////////////////
 
-class Node {
-    constructor(coordinate, next = null) {
-        this.coordinate = coordinate;
-        this.next = next;
-    }
-};
-
-class LinkedList {
-    constructor() {
-        this.head = null;
-        this.size = 0;
-    }
-
-    // Insert first node
-    insertFirstNode(coordinate) {
-        this.head = new Node(coordinate, this.head);
-        this.size++;
-    }
-
-    // Insert last node
-    insertLastNode(coordinate) {
-        let node = new Node(coordinate);
-        let current;
-
-        // if empty, make head
-        if (!this.head) {
-            this.head = node;
-        } else {
-            current = this.head;
-
-            while (current.next) {
-                current = current.next;
-            }
-
-            current.next = node;
-        }
-
-        this.size++;
-    }
-
-    // Get coordinate at index
-    getAt(index) {
-        let current = this.head;
-        let count = 0;
-
-        while (current) {
-            if (count === index) {
-                // console.log(current.data);
-                return current.coordinate;
-            }
-                count++;
-                current = current.next;
-        }
-
-        return;
-    }
-
-    getFirstPathCoordinate() {
-        return this.getAt(0);
-    }
-
-    getLastPathCoordinate() {
-        return this.getAt(this.size - 1);
-    }
-
-    // Clear list
-    clearList() {
-        this.head = null;
-        this.size = 0;
-    }
-
-    // return array of nodes
-    printListData() {
-        let current = this.head;
-        const array = [];
-        while(current) {
-            array.push(current.coordinate);
-            current = current.next;
-        }
-    }
-}
-
 const state = {
     firstClick: true,   // first click
     startClickCoordinate: null,
     endClickCoordinate: null,
     turn: 0,
-    path: new LinkedList(),
+    // path: new LinkedList(),
+    path: [],
 
     get startOfPathCoordinate() {
-        return this.path.getFirstPathCoordinate();
+        // return this.path.getFirstPathCoordinate();
+        return this.path[0];
     },
 
     get endOfPathCoordinate() {
-        return this.path.getLastPathCoordinate();
+        // return this.path.getLastPathCoordinate();
+        return this.path[this.path.length - 1];
     },
 
     get player() {
@@ -275,6 +196,50 @@ const checkCoordinatesAreEqual = (coordinate1, coordinate2) => {
     })
 };
 
+const doIntersectWithPath = (endClickCoordinate) => {
+    return state.path.some((currentCoordinate, index, array) => {
+        // last coordinate won't have another segment
+        if (index === array.length - 1) return false;
+
+        const pathCoordinateCloserToYAxis = (currentCoordinate.x <= array[index + 1].x) ? currentCoordinate : array[index+1];
+        const pathCoordinateFartherFromYAxis = (currentCoordinate.x <= array[index + 1].x) ? array[index+1] : currentCoordinate;
+        const clickCoordinateCloserToYAxis = (state.startClickCoordinate.x <= endClickCoordinate.x) ? state.startClickCoordinate : endClickCoordinate;
+        const clickCoordinateFartherFromYAxis = (state.startClickCoordinate.x <= endClickCoordinate.x) ? endClickCoordinate : state.startClickCoordinate;
+
+        // if there is only one element in an array, we need to check if newly created segment overlaps existing edge
+        if (array.length === 2) {
+            const slopePath = (pathCoordinateFartherFromYAxis.y - pathCoordinateCloserToYAxis.y)/(pathCoordinateFartherFromYAxis.x - pathCoordinateCloserToYAxis.x);
+            console.log('slopePath=', (pathCoordinateFartherFromYAxis.y - pathCoordinateCloserToYAxis.y)/(pathCoordinateFartherFromYAxis.x - pathCoordinateCloserToYAxis.x));
+            const slopeClick = (clickCoordinateFartherFromYAxis.y - clickCoordinateCloserToYAxis.y)/(clickCoordinateFartherFromYAxis.x - clickCoordinateCloserToYAxis.x);
+            console.log('slopeClick=', (clickCoordinateFartherFromYAxis.y - clickCoordinateCloserToYAxis.y)/(clickCoordinateFartherFromYAxis.x - clickCoordinateCloserToYAxis.x))
+            if (
+                // if both segments have the same slope
+                slopePath === slopeClick || ((slopePath === Infinity || slopePath === -Infinity) && (slopeClick === Infinity || slopeClick === -Infinity))
+                // and segments overlap
+                && (
+                    onSegment(pathCoordinateCloserToYAxis, clickCoordinateCloserToYAxis, pathCoordinateFartherFromYAxis) || (onSegment(clickCoordinateCloserToYAxis, pathCoordinateFartherFromYAxis, clickCoordinateFartherFromYAxis))
+                    // || (checkCoordinatesAreEqual(pathCoordinateCloserToYAxis, clickCoordinateCloserToYAxis) && checkCoordinatesAreEqual(pathCoordinateFartherFromYAxis, clickCoordinateFartherFromYAxis))
+                )
+            ) {
+                // debugger;
+                return true;
+            }
+
+        }
+
+        // // if checkCoordinatesAreEqual(state.startClickCoordinate, state.startOfPathCoordinate), we don't check intersection with the first element in state.path
+        if (checkCoordinatesAreEqual(state.startClickCoordinate, state.startOfPathCoordinate) && index === 0) {
+            return false
+        }
+        // if checkCoordinatesAreEqual(state.startClickCoordinate, state.endOfPathCoordinate), we don't check intersection with the last element in state.path)
+        if (checkCoordinatesAreEqual(state.startClickCoordinate, state.endOfPathCoordinate) && index === array.length - 2) {
+            return false
+        }
+
+        return doIntersect(currentCoordinate, array[index + 1], state.startClickCoordinate, endClickCoordinate);
+    })
+}
+
 // reset state after invalid second click
 const resetStateToFirstClick = () => {
     if (state.turn === 0) {
@@ -289,14 +254,17 @@ const resetStateToFirstClick = () => {
 const nextPlayerTurn = () => {
     if (state.turn === 0) {
         // if it is a first turn, we need to add both first and last nodes(coordinates) to path
-        state.path.insertFirstNode(state.startClickCoordinate);
-        state.path.insertLastNode(state.endClickCoordinate);
+        // state.path.insertFirstNode(state.startClickCoordinate);
+        // state.path.insertLastNode(state.endClickCoordinate);
+        state.path.unshift(state.startClickCoordinate);
+        state.path.push(state.endClickCoordinate);
     } else if (checkCoordinatesAreEqual(state.startClickCoordinate, state.startOfPathCoordinate)) {
         // else if state.firstClickCoordinate is equal to state.startOfPathCoordinate, then we insert in the beginning of the path
-        state.path.insertFirstNode(state.endClickCoordinate);
+        // state.path.insertFirstNode(state.endClickCoordinate);
+        state.path.unshift(state.endClickCoordinate);
     } else {
         // otherwise, we insert at the end of the path
-        state.path.insertLastNode(state.endClickCoordinate);
+        state.path.push(state.endClickCoordinate);
     }
 
     state.turn++;
@@ -330,13 +298,20 @@ const checkLineIsOctilinear = (coordinate1, coordinate2) => {
 }
 
 // returns true if coordinate if valid, false otherwise
-const checkSecondCoordinateIsValid = (coordinate) => {
+const checkSecondCoordinateIsValid = (endClickCoordinate) => {
+    // check if there is an intersection between edges
+    console.log('doIntersectWithPath=', doIntersectWithPath(endClickCoordinate));
+    // console.log('endClickCoordinate on path=', checkCoordinatesAreEqual())
+    if (doIntersectWithPath(endClickCoordinate)) {
+        return false;
+    }
+
     // if user clicked on the same coordinate on his second click
-    if (checkCoordinatesAreEqual(state.startClickCoordinate, coordinate)) {
-        return false
+    if (checkCoordinatesAreEqual(state.startClickCoordinate, endClickCoordinate)) {
+        return false;
     }
     // check if line is Octilinear
-    if (checkLineIsOctilinear(state.startClickCoordinate, coordinate)) {
+    if (checkLineIsOctilinear(state.startClickCoordinate, endClickCoordinate)) {
         return true;
     }
     return false;
