@@ -179,6 +179,16 @@ const state = {
                         heading: `Player ${this.player}`,
                         message: this.firstClick ? "You must start on either end of the path!" : "Invalid move. Try again"
                     }
+                };
+                break;
+            case 'GAME_OVER':
+                responseObj = {
+                    msg,
+                    body: {
+                        newLine: null,
+                        heading: "Game Over",
+                        message: `Player ${this.player} Wins!`
+                    }
                 }
         };
 
@@ -206,23 +216,44 @@ const doIntersectWithPath = (endClickCoordinate) => {
         const clickCoordinateCloserToYAxis = (state.startClickCoordinate.x <= endClickCoordinate.x) ? state.startClickCoordinate : endClickCoordinate;
         const clickCoordinateFartherFromYAxis = (state.startClickCoordinate.x <= endClickCoordinate.x) ? endClickCoordinate : state.startClickCoordinate;
 
-        // if there is only one element in an array, we need to check if newly created segment overlaps existing edge
+        // console.log('pathCoordinateCloserToYAxis=', pathCoordinateCloserToYAxis);
+        // console.log('pathCoordinateFartherFromYAxis=', pathCoordinateFartherFromYAxis)
+        // console.log('clickCoordinateCloserToYAxis=', clickCoordinateCloserToYAxis)
+        // console.log('clickCoordinateFartherFromYAxis=', clickCoordinateFartherFromYAxis)
+
+
+        // if there is only one edge in an array (2 coordinates), we need to check if newly created edge overlaps existing edge
         if (array.length === 2) {
-            const slopePath = (pathCoordinateFartherFromYAxis.y - pathCoordinateCloserToYAxis.y)/(pathCoordinateFartherFromYAxis.x - pathCoordinateCloserToYAxis.x);
-            console.log('slopePath=', (pathCoordinateFartherFromYAxis.y - pathCoordinateCloserToYAxis.y)/(pathCoordinateFartherFromYAxis.x - pathCoordinateCloserToYAxis.x));
-            const slopeClick = (clickCoordinateFartherFromYAxis.y - clickCoordinateCloserToYAxis.y)/(clickCoordinateFartherFromYAxis.x - clickCoordinateCloserToYAxis.x);
-            console.log('slopeClick=', (clickCoordinateFartherFromYAxis.y - clickCoordinateCloserToYAxis.y)/(clickCoordinateFartherFromYAxis.x - clickCoordinateCloserToYAxis.x))
-            if (
-                // if both segments have the same slope
-                slopePath === slopeClick || ((slopePath === Infinity || slopePath === -Infinity) && (slopeClick === Infinity || slopeClick === -Infinity))
-                // and segments overlap
-                && (
-                    onSegment(pathCoordinateCloserToYAxis, clickCoordinateCloserToYAxis, pathCoordinateFartherFromYAxis) || (onSegment(clickCoordinateCloserToYAxis, pathCoordinateFartherFromYAxis, clickCoordinateFartherFromYAxis))
-                    // || (checkCoordinatesAreEqual(pathCoordinateCloserToYAxis, clickCoordinateCloserToYAxis) && checkCoordinatesAreEqual(pathCoordinateFartherFromYAxis, clickCoordinateFartherFromYAxis))
-                )
-            ) {
-                // debugger;
-                return true;
+            const firstCoordinateForDirection = state.path.filter(coordinate => !checkCoordinatesAreEqual(coordinate, state.startClickCoordinate))[0];
+            // console.log('firstCoordinateForDirection=', firstCoordinateForDirection);
+            // console.log('endClickCoordinate=', endClickCoordinate);
+            // console.log('state.startClickCoordinate=', state.startClickCoordinate)
+
+            const slopePath = (pathCoordinateCloserToYAxis.y - pathCoordinateFartherFromYAxis.y)/(pathCoordinateFartherFromYAxis.x - pathCoordinateCloserToYAxis.x);
+            console.log('slopePath=', slopePath);
+            const slopeClick = (clickCoordinateCloserToYAxis.y - clickCoordinateFartherFromYAxis.y)/(clickCoordinateFartherFromYAxis.x - clickCoordinateCloserToYAxis.x);
+            console.log('slopeClick=', slopeClick)
+
+            if (slopePath === 1 && slopeClick === 1) {
+                if (firstCoordinateForDirection.x > state.startClickCoordinate.x && (endClickCoordinate.x >= state.startClickCoordinate.x)) {
+                    return true;
+                }
+            }
+            if (slopePath === 0 && slopeClick === 0) {
+                if (firstCoordinateForDirection.x > state.startClickCoordinate.x && (endClickCoordinate.x >= firstCoordinateForDirection.x)) {
+                    return true;
+                }
+                if (firstCoordinateForDirection.x < state.startClickCoordinate.x && (endClickCoordinate.x <= firstCoordinateForDirection.x)) {
+                    return true;
+                }
+            }
+            if (Math.abs(slopePath) === Infinity) {
+                if (firstCoordinateForDirection.y > state.startClickCoordinate.y && (endClickCoordinate.y >= firstCoordinateForDirection.y)) {
+                    return true;
+                }
+                if (firstCoordinateForDirection.y < state.startClickCoordinate.y && (endClickCoordinate.y <= firstCoordinateForDirection.y)) {
+                    return true;
+                }
             }
 
         }
@@ -266,10 +297,7 @@ const nextPlayerTurn = () => {
         // otherwise, we insert at the end of the path
         state.path.push(state.endClickCoordinate);
     }
-
     state.turn++;
-    app.ports.response.send(state.formResponseObj('VALID_END_NODE'));
-    state.firstClick = true;
 }
 
 const startGame = (msg) => {
@@ -287,12 +315,12 @@ const checkFirstCoordinateIsValid = (coordinate) => {
 const checkLineIsOctilinear = (coordinate1, coordinate2) => {
     // if slope is 1, 0 or undefined, line is octilinear
     if (coordinate1.x === coordinate2.x || coordinate1.y === coordinate2.y) {
-        console.log('line is octilinear: horizontal or vertical')
+        // console.log('line is octilinear: horizontal or vertical')
         return true;
     }
     const slope = Math.abs((coordinate1.x - coordinate2.x) / (coordinate1.y - coordinate2.y));
     if (slope === 1) {
-        console.log('line is octilinear: slope 1')
+        // console.log('line is octilinear: slope 1')
         return true;
     }
 }
@@ -306,7 +334,7 @@ const checkSecondCoordinateIsValid = (endClickCoordinate) => {
         return false;
     }
 
-    // if user clicked on the same coordinate on his second click
+    // if user clicked on the same coordinate on his/her second click
     if (checkCoordinatesAreEqual(state.startClickCoordinate, endClickCoordinate)) {
         return false;
     }
@@ -315,6 +343,15 @@ const checkSecondCoordinateIsValid = (endClickCoordinate) => {
         return true;
     }
     return false;
+}
+
+const checkIfWinner = () => {
+    // starting from the second turn
+    // check if we can build any new node (at least one unit long) either from 'head' or 'tail' of state.path array
+    if (state.turn > 0) {
+        console.log('state.endOfPathCoordinate=', state.endOfPathCoordinate);
+        console.log('state.startOfPathCoordinate=', state.startOfPathCoordinate);
+    }
 }
 
 // coordinate is in form {x: Number, y: Number}
@@ -337,7 +374,6 @@ const handleNodeClicked = (coordinate, msg) => {
         }
     };
 
-
     // check if the second clicked node is valid
     // !!!!!! implement logic to prevent overlapping segments
     if (!checkSecondCoordinateIsValid(coordinate)) {
@@ -348,8 +384,12 @@ const handleNodeClicked = (coordinate, msg) => {
 
     // it is a second click of a player
     state.endClickCoordinate = coordinate;
-
+    if (checkIfWinner()) {
+        return app.ports.response.send(state.formResponseObj('GAME_OVER'));
+    }
+    app.ports.response.send(state.formResponseObj('VALID_END_NODE'));
     nextPlayerTurn();
+    state.firstClick = true;
 }
 
 app.ports.request.subscribe((message) => {
@@ -366,3 +406,5 @@ app.ports.request.subscribe((message) => {
 
     console.log('state=', state);
 });
+
+
