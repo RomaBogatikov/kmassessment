@@ -1,5 +1,7 @@
 'use strict';
 
+const FIELD_DIMENSIONS = 4;
+
 const node = document.getElementById('app');
 
 // Update the second argument to `Elm.Main.embed` with your selected API. See
@@ -47,7 +49,6 @@ const orientation = (p, q, r) => {
     // for details of below formula.
 
     const val = ((q.y - p.y) * (r.x - q.x)) - ((q.x - p.x) * (r.y - q.y));
-    console.log('val=', val)
     if (val > 0) {
         // Clockwise orientation
         return 1;
@@ -206,15 +207,18 @@ const checkCoordinatesAreEqual = (coordinate1, coordinate2) => {
     })
 };
 
-const doIntersectWithPath = (endClickCoordinate) => {
+const doIntersectWithPath = (endClickCoordinate, headOrTailCoordinate = false, headOrTail = '') => {
+
     return state.path.some((currentCoordinate, index, array) => {
         // last coordinate won't have another segment
         if (index === array.length - 1) return false;
 
+        const startCoordinate = headOrTailCoordinate || state.startClickCoordinate;
+
         const pathCoordinateCloserToYAxis = (currentCoordinate.x <= array[index + 1].x) ? currentCoordinate : array[index+1];
         const pathCoordinateFartherFromYAxis = (currentCoordinate.x <= array[index + 1].x) ? array[index+1] : currentCoordinate;
-        const clickCoordinateCloserToYAxis = (state.startClickCoordinate.x <= endClickCoordinate.x) ? state.startClickCoordinate : endClickCoordinate;
-        const clickCoordinateFartherFromYAxis = (state.startClickCoordinate.x <= endClickCoordinate.x) ? endClickCoordinate : state.startClickCoordinate;
+        const clickCoordinateCloserToYAxis = (startCoordinate.x <= endClickCoordinate.x) ? startCoordinate : endClickCoordinate;
+        const clickCoordinateFartherFromYAxis = (startCoordinate.x <= endClickCoordinate.x) ? endClickCoordinate : startCoordinate;
 
         // console.log('pathCoordinateCloserToYAxis=', pathCoordinateCloserToYAxis);
         // console.log('pathCoordinateFartherFromYAxis=', pathCoordinateFartherFromYAxis)
@@ -222,52 +226,93 @@ const doIntersectWithPath = (endClickCoordinate) => {
         // console.log('clickCoordinateFartherFromYAxis=', clickCoordinateFartherFromYAxis)
 
 
-        // if there is only one edge in an array (2 coordinates), we need to check if newly created edge overlaps existing edge
-        if (array.length === 2) {
-            const firstCoordinateForDirection = state.path.filter(coordinate => !checkCoordinatesAreEqual(coordinate, state.startClickCoordinate))[0];
+        // on second turn, we need to check if newly created edge overlaps existing edge
+        if (state.turn === 1 && !headOrTailCoordinate) {
+            const firstCoordinateForDirection = state.path.filter(coordinate => !checkCoordinatesAreEqual(coordinate, startCoordinate))[0];
             // console.log('firstCoordinateForDirection=', firstCoordinateForDirection);
             // console.log('endClickCoordinate=', endClickCoordinate);
             // console.log('state.startClickCoordinate=', state.startClickCoordinate)
 
-            const slopePath = (pathCoordinateCloserToYAxis.y - pathCoordinateFartherFromYAxis.y)/(pathCoordinateFartherFromYAxis.x - pathCoordinateCloserToYAxis.x);
+            // const slopePath = (pathCoordinateCloserToYAxis.y - pathCoordinateFartherFromYAxis.y)/(pathCoordinateFartherFromYAxis.x - pathCoordinateCloserToYAxis.x);
+            let slopePath;
+            if (pathCoordinateCloserToYAxis.y >= pathCoordinateFartherFromYAxis.y) {
+                slopePath = (pathCoordinateCloserToYAxis.y - pathCoordinateFartherFromYAxis.y)/(pathCoordinateFartherFromYAxis.x - pathCoordinateCloserToYAxis.x);
+            }
+            if (pathCoordinateCloserToYAxis.y <= pathCoordinateFartherFromYAxis.y) {
+                slopePath = (pathCoordinateCloserToYAxis.y - pathCoordinateFartherFromYAxis.y)/(pathCoordinateFartherFromYAxis.x - pathCoordinateCloserToYAxis.x);
+            }
             console.log('slopePath=', slopePath);
-            const slopeClick = (clickCoordinateCloserToYAxis.y - clickCoordinateFartherFromYAxis.y)/(clickCoordinateFartherFromYAxis.x - clickCoordinateCloserToYAxis.x);
+            // const slopeClick = (clickCoordinateCloserToYAxis.y - clickCoordinateFartherFromYAxis.y)/(clickCoordinateFartherFromYAxis.x - clickCoordinateCloserToYAxis.x);
+            let slopeClick;
+            if (clickCoordinateCloserToYAxis.y >= clickCoordinateFartherFromYAxis.y) {
+                slopeClick = (clickCoordinateCloserToYAxis.y - clickCoordinateFartherFromYAxis.y)/(clickCoordinateFartherFromYAxis.x - clickCoordinateCloserToYAxis.x);
+            }
+            if (clickCoordinateCloserToYAxis.y <= clickCoordinateFartherFromYAxis.y) {
+                slopeClick = (clickCoordinateCloserToYAxis.y - clickCoordinateFartherFromYAxis.y)/(clickCoordinateFartherFromYAxis.x - clickCoordinateCloserToYAxis.x);
+            }
             console.log('slopeClick=', slopeClick)
 
             if (slopePath === 1 && slopeClick === 1) {
-                if (firstCoordinateForDirection.x > state.startClickCoordinate.x && (endClickCoordinate.x >= state.startClickCoordinate.x)) {
+                if (isBetween(firstCoordinateForDirection, endClickCoordinate, startCoordinate)) {
                     return true;
                 }
+                if (firstCoordinateForDirection.x > startCoordinate.x && (endClickCoordinate.x >= startCoordinate.x)) {
+                    return true;
+                }
+                if (firstCoordinateForDirection.x < startCoordinate.x && (endClickCoordinate.x <= startCoordinate.x)) {
+                    return true;
+                }
+            }
+            if (slopePath === -1 && slopeClick === -1) {
+                if (isBetween(firstCoordinateForDirection, endClickCoordinate, startCoordinate)) {
+                    return true;
+                }
+                if (firstCoordinateForDirection.x < startCoordinate.x && (endClickCoordinate.x <= startCoordinate.x)) {
+                    return true;
+                }
+                if (firstCoordinateForDirection.x > startCoordinate.x && (endClickCoordinate.x >= startCoordinate.x)) {
+                    return true;
+                }
+
             }
             if (slopePath === 0 && slopeClick === 0) {
-                if (firstCoordinateForDirection.x > state.startClickCoordinate.x && (endClickCoordinate.x >= firstCoordinateForDirection.x)) {
+                if (firstCoordinateForDirection.x > startCoordinate.x && (endClickCoordinate.x >= startCoordinate.x)) {
                     return true;
                 }
-                if (firstCoordinateForDirection.x < state.startClickCoordinate.x && (endClickCoordinate.x <= firstCoordinateForDirection.x)) {
+                if (firstCoordinateForDirection.x < startCoordinate.x && (endClickCoordinate.x <= startCoordinate.x)) {
                     return true;
                 }
             }
-            if (Math.abs(slopePath) === Infinity) {
-                if (firstCoordinateForDirection.y > state.startClickCoordinate.y && (endClickCoordinate.y >= firstCoordinateForDirection.y)) {
+            if (Math.abs(slopePath) === Infinity && Math.abs(slopeClick) === Infinity) {
+                if (firstCoordinateForDirection.y > startCoordinate.y && (endClickCoordinate.y >= startCoordinate.y)) {
                     return true;
                 }
-                if (firstCoordinateForDirection.y < state.startClickCoordinate.y && (endClickCoordinate.y <= firstCoordinateForDirection.y)) {
+                if (firstCoordinateForDirection.y < startCoordinate.y && (endClickCoordinate.y <= startCoordinate.y)) {
                     return true;
                 }
             }
 
         }
 
-        // // if checkCoordinatesAreEqual(state.startClickCoordinate, state.startOfPathCoordinate), we don't check intersection with the first element in state.path
-        if (checkCoordinatesAreEqual(state.startClickCoordinate, state.startOfPathCoordinate) && index === 0) {
+        if (headOrTail === 'head' && index === 0) {
+            return false;
+        }
+
+        if (headOrTail === 'tail' && index === array.length - 2) {
+            return false;
+        }
+
+        // if checkCoordinatesAreEqual(state.startClickCoordinate, state.startOfPathCoordinate), we don't check intersection with the first element in state.path
+        if (checkCoordinatesAreEqual(startCoordinate, state.startOfPathCoordinate) && index === 0) {
             return false
         }
         // if checkCoordinatesAreEqual(state.startClickCoordinate, state.endOfPathCoordinate), we don't check intersection with the last element in state.path)
-        if (checkCoordinatesAreEqual(state.startClickCoordinate, state.endOfPathCoordinate) && index === array.length - 2) {
+        if (checkCoordinatesAreEqual(startCoordinate, state.endOfPathCoordinate) && index === array.length - 2) {
             return false
         }
 
-        return doIntersect(currentCoordinate, array[index + 1], state.startClickCoordinate, endClickCoordinate);
+
+        return doIntersect(currentCoordinate, array[index + 1], startCoordinate, endClickCoordinate);
     })
 }
 
@@ -297,7 +342,7 @@ const nextPlayerTurn = () => {
         // otherwise, we insert at the end of the path
         state.path.push(state.endClickCoordinate);
     }
-    state.turn++;
+    // state.turn++;
 }
 
 const startGame = (msg) => {
@@ -345,13 +390,137 @@ const checkSecondCoordinateIsValid = (endClickCoordinate) => {
     return false;
 }
 
-const checkIfWinner = () => {
-    // starting from the second turn
-    // check if we can build any new node (at least one unit long) either from 'head' or 'tail' of state.path array
-    if (state.turn > 0) {
-        console.log('state.endOfPathCoordinate=', state.endOfPathCoordinate);
-        console.log('state.startOfPathCoordinate=', state.startOfPathCoordinate);
+// creates array of nodes around head or tail node with only non-negative coordinates
+const createArrayOfNodesAroundHeadOrTail = (coordinate) => {
+    const newEmptyArray = new Array(8);
+    const arrayOfNodesAroundHeadOrTail = [
+        {
+            x: coordinate.x - 1,
+            y: coordinate.y - 1,
+        },
+        {
+            x: coordinate.x,
+            y: coordinate.y - 1,
+        },
+        {
+            x: coordinate.x + 1 ,
+            y: coordinate.y - 1,
+        },
+        {
+            x: coordinate.x - 1,
+            y: coordinate.y
+        },
+        {
+            x: coordinate.x+1,
+            y: coordinate.y,
+        },
+        {
+            x: coordinate.x - 1,
+            y: coordinate.y + 1,
+        },
+        {
+            x: coordinate.x,
+            y: coordinate.y + 1,
+        },
+        {
+            x: coordinate.x + 1,
+            y: coordinate.y + 1
+        }
+    ].filter(element => element.x >= 0 && element.y >= 0 && element.x < FIELD_DIMENSIONS && element.y < FIELD_DIMENSIONS);
+    return arrayOfNodesAroundHeadOrTail;
+}
+
+// Check if point is on segment
+const isBetween = (a, b, c) => {
+    // when edge is horizontal
+
+    if (a.y === c.y) {
+        if ((a.x < c.x) && b.x >= a.x && b.x <= c.x && b.y === a.y) {
+            return true;
+        }
+        if ((a.x > c.x) && b.x >= c.x && b.x <= a.x && b.y === a.y) {
+            return true;
+        }
     }
+    // when edge is vertical
+    if (a.x === c.x) {
+        if ((a.y < c.y) && b.y >= a.y && b.y <= c.y && b.x === a.x) {
+            return true;
+        }
+        if ((a.y > c.y) && b.y <= a.y && b.y >= c.y && b.x === a.x) {
+            return true
+        }
+    }
+    // when 45 degrees
+    // when slope is 1 and a is closer to y-axis
+    if ((a.x < c.x && a.y > c.y)) {
+        if ((a.y - b.y)/(b.x - a.x) === 1 && (b.y - c.y)/(c.x - b.x) === 1 && b.x >= a.x && b.x <= c.x && b.y <= a.y && b.y >= c.y) {
+            return true;
+        }
+    }
+    // when slope is 1 and c is closer to y-axis
+    if (a.x > c.x && a.y < c.y) {
+        if ((b.y - a.y)/(a.x - b.x) === 1 && (c.y - b.y)/(b.x - c.x) === 1 && b.x <= a.x && b.x >= c.x && b.y <= c.y && b.y >= a.y) {
+            return true;
+        }
+    }
+    // when slope is -1 and a is closer to y-axis
+    if (a.x < c.x && a.y < c.y) {
+        if ((b.y - a.y)/(b.x - a.x) === 1 && b.x >= a.x && b.x <= c.x && b.y >= a.y && b.y <= c.y) {
+            return true;
+        }
+    }
+    // when slope is -1 and c closer to y-axis
+    if (a.x > c.x && a.y > c.y) {
+        if ((b.y - c.y)/(b.x - c.x) === 1 && b.x >= c.x && b.x <= a.x && b.y >= c.y && b.y <= a.y) {
+            return true;
+        }
+    }
+    return false
+
+}
+
+// /////////////////////////////////////////
+
+const checkIfWinner = () => {
+
+    // starting from the second turn
+    // check if we can build any new node (at least one unit long) either from 'head' or 'tail' of path
+
+    if (state.turn === 0) return false;
+    console.log('state.startOfPathCoordinate=', state.startOfPathCoordinate);
+    console.log('state.endClickCoordinate=', state.endClickCoordinate);
+    // build array of nodes around endOfPathCoordinate
+    const arrayOfNodesHead = createArrayOfNodesAroundHeadOrTail(state.startOfPathCoordinate);
+    const arrayOfNodesTail = createArrayOfNodesAroundHeadOrTail(state.endClickCoordinate);
+
+    console.log('arrayOfNodesHead=', arrayOfNodesHead);
+    console.log('arrayOfNodesTail=', arrayOfNodesTail);
+
+    // remove the point that lies on the first edge of path at head and tail
+    const arrayOfNodesHeadNew = arrayOfNodesHead.filter(element => !isBetween(state.startOfPathCoordinate, element, state.path[1]));
+    console.log('arrayOfNodesHeadNew', arrayOfNodesHeadNew);
+    debugger;
+    const arrayOfNodesTailNew = arrayOfNodesTail.filter(element => {
+        console.log('isBetween in tail=', state.endClickCoordinate, element, state.path[state.path.length - 2])
+        return !isBetween(state.endClickCoordinate, element, state.path[state.path.length - 2])
+    });
+    console.log('arrayOfNodesTailNew=', arrayOfNodesTailNew);
+
+    // returns true if possible to draw a new edge at head
+    const possibleEdgeAtHead = arrayOfNodesHeadNew.some(coordinate => {
+        return !doIntersectWithPath(coordinate, state.startOfPathCoordinate, 'head')
+    });
+    // returns true if possible to draw a new edge at tail
+    const possibleEdgeAtTail = arrayOfNodesTailNew.some(coordinate => !doIntersectWithPath(coordinate, state.endClickCoordinate, 'tail'));
+
+    console.log('possibleEdgeAtHead=', possibleEdgeAtHead);
+    console.log('possibleEdgeAtTail=', possibleEdgeAtTail)
+
+    console.log('winner = ', (possibleEdgeAtHead === false && possibleEdgeAtTail === false) || false);
+
+    return (possibleEdgeAtHead === false && possibleEdgeAtTail === false) || false;
+
 }
 
 // coordinate is in form {x: Number, y: Number}
@@ -384,11 +553,14 @@ const handleNodeClicked = (coordinate, msg) => {
 
     // it is a second click of a player
     state.endClickCoordinate = coordinate;
+    nextPlayerTurn();
     if (checkIfWinner()) {
+        app.ports.response.send(state.formResponseObj('VALID_END_NODE'));
         return app.ports.response.send(state.formResponseObj('GAME_OVER'));
     }
+
+    state.turn++;
     app.ports.response.send(state.formResponseObj('VALID_END_NODE'));
-    nextPlayerTurn();
     state.firstClick = true;
 }
 
@@ -406,5 +578,3 @@ app.ports.request.subscribe((message) => {
 
     console.log('state=', state);
 });
-
-
