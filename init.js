@@ -1,5 +1,6 @@
 'use strict';
 
+// constant to set a size of the playing field
 const FIELD_DIMENSIONS = 4;
 
 const node = document.getElementById('app');
@@ -193,7 +194,6 @@ const state = {
                 }
         };
 
-        // console.log('responseObj=', responseObj)
         return responseObj;
     }
 }
@@ -220,20 +220,10 @@ const doIntersectWithPath = (endClickCoordinate, headOrTailCoordinate = false, h
         const clickCoordinateCloserToYAxis = (startCoordinate.x <= endClickCoordinate.x) ? startCoordinate : endClickCoordinate;
         const clickCoordinateFartherFromYAxis = (startCoordinate.x <= endClickCoordinate.x) ? endClickCoordinate : startCoordinate;
 
-        // console.log('pathCoordinateCloserToYAxis=', pathCoordinateCloserToYAxis);
-        // console.log('pathCoordinateFartherFromYAxis=', pathCoordinateFartherFromYAxis)
-        // console.log('clickCoordinateCloserToYAxis=', clickCoordinateCloserToYAxis)
-        // console.log('clickCoordinateFartherFromYAxis=', clickCoordinateFartherFromYAxis)
-
-
         // on second turn, we need to check if newly created edge overlaps existing edge
         if (state.turn === 1 && !headOrTailCoordinate) {
             const firstCoordinateForDirection = state.path.filter(coordinate => !checkCoordinatesAreEqual(coordinate, startCoordinate))[0];
-            // console.log('firstCoordinateForDirection=', firstCoordinateForDirection);
-            // console.log('endClickCoordinate=', endClickCoordinate);
-            // console.log('state.startClickCoordinate=', state.startClickCoordinate)
 
-            // const slopePath = (pathCoordinateCloserToYAxis.y - pathCoordinateFartherFromYAxis.y)/(pathCoordinateFartherFromYAxis.x - pathCoordinateCloserToYAxis.x);
             let slopePath;
             if (pathCoordinateCloserToYAxis.y >= pathCoordinateFartherFromYAxis.y) {
                 slopePath = (pathCoordinateCloserToYAxis.y - pathCoordinateFartherFromYAxis.y)/(pathCoordinateFartherFromYAxis.x - pathCoordinateCloserToYAxis.x);
@@ -241,7 +231,7 @@ const doIntersectWithPath = (endClickCoordinate, headOrTailCoordinate = false, h
             if (pathCoordinateCloserToYAxis.y <= pathCoordinateFartherFromYAxis.y) {
                 slopePath = (pathCoordinateCloserToYAxis.y - pathCoordinateFartherFromYAxis.y)/(pathCoordinateFartherFromYAxis.x - pathCoordinateCloserToYAxis.x);
             }
-            console.log('slopePath=', slopePath);
+
             // const slopeClick = (clickCoordinateCloserToYAxis.y - clickCoordinateFartherFromYAxis.y)/(clickCoordinateFartherFromYAxis.x - clickCoordinateCloserToYAxis.x);
             let slopeClick;
             if (clickCoordinateCloserToYAxis.y >= clickCoordinateFartherFromYAxis.y) {
@@ -250,7 +240,6 @@ const doIntersectWithPath = (endClickCoordinate, headOrTailCoordinate = false, h
             if (clickCoordinateCloserToYAxis.y <= clickCoordinateFartherFromYAxis.y) {
                 slopeClick = (clickCoordinateCloserToYAxis.y - clickCoordinateFartherFromYAxis.y)/(clickCoordinateFartherFromYAxis.x - clickCoordinateCloserToYAxis.x);
             }
-            console.log('slopeClick=', slopeClick)
 
             if (slopePath === 1 && slopeClick === 1) {
                 if (isBetween(firstCoordinateForDirection, endClickCoordinate, startCoordinate)) {
@@ -360,12 +349,10 @@ const checkFirstCoordinateIsValid = (coordinate) => {
 const checkLineIsOctilinear = (coordinate1, coordinate2) => {
     // if slope is 1, 0 or undefined, line is octilinear
     if (coordinate1.x === coordinate2.x || coordinate1.y === coordinate2.y) {
-        // console.log('line is octilinear: horizontal or vertical')
         return true;
     }
     const slope = Math.abs((coordinate1.x - coordinate2.x) / (coordinate1.y - coordinate2.y));
     if (slope === 1) {
-        // console.log('line is octilinear: slope 1')
         return true;
     }
 }
@@ -373,8 +360,6 @@ const checkLineIsOctilinear = (coordinate1, coordinate2) => {
 // returns true if coordinate if valid, false otherwise
 const checkSecondCoordinateIsValid = (endClickCoordinate) => {
     // check if there is an intersection between edges
-    console.log('doIntersectWithPath=', doIntersectWithPath(endClickCoordinate));
-    // console.log('endClickCoordinate on path=', checkCoordinatesAreEqual())
     if (doIntersectWithPath(endClickCoordinate)) {
         return false;
     }
@@ -488,24 +473,16 @@ const checkIfWinner = () => {
     // check if we can build any new node (at least one unit long) either from 'head' or 'tail' of path
 
     if (state.turn === 0) return false;
-    console.log('state.startOfPathCoordinate=', state.startOfPathCoordinate);
-    console.log('state.endClickCoordinate=', state.endClickCoordinate);
     // build array of nodes around endOfPathCoordinate
     const arrayOfNodesHead = createArrayOfNodesAroundHeadOrTail(state.startOfPathCoordinate);
     const arrayOfNodesTail = createArrayOfNodesAroundHeadOrTail(state.endClickCoordinate);
 
-    console.log('arrayOfNodesHead=', arrayOfNodesHead);
-    console.log('arrayOfNodesTail=', arrayOfNodesTail);
-
     // remove the point that lies on the first edge of path at head and tail
     const arrayOfNodesHeadNew = arrayOfNodesHead.filter(element => !isBetween(state.startOfPathCoordinate, element, state.path[1]));
-    console.log('arrayOfNodesHeadNew', arrayOfNodesHeadNew);
-    debugger;
+
     const arrayOfNodesTailNew = arrayOfNodesTail.filter(element => {
-        console.log('isBetween in tail=', state.endClickCoordinate, element, state.path[state.path.length - 2])
         return !isBetween(state.endClickCoordinate, element, state.path[state.path.length - 2])
     });
-    console.log('arrayOfNodesTailNew=', arrayOfNodesTailNew);
 
     // returns true if possible to draw a new edge at head
     const possibleEdgeAtHead = arrayOfNodesHeadNew.some(coordinate => {
@@ -535,8 +512,6 @@ const handleNodeClicked = (coordinate, msg) => {
             state.firstClick = false;
             return;
         } else {
-            // console.log('invalid start mode');
-            // console.log('response INVALID START NODE =', state.formResponseObj('INVALID_START_NODE'));
             app.ports.response.send(state.formResponseObj('INVALID_START_NODE'));
             resetStateToFirstClick();
             return;
